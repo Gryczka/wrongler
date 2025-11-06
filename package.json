@@ -1,0 +1,62 @@
+{
+  "name": "wrongler",
+  "version": "4.0.0",
+  "description": "Wrangler with YOLO mode - auto-deploy on file changes",
+  "keywords": [
+    "wrongler",
+    "wrangler",
+    "yolo",
+    "cloudflare",
+    "workers",
+    "auto-deploy",
+    "watch",
+    "serverless",
+    "edge",
+    "cli"
+  ],
+  "homepage": "https://github.com/Gryczka/wrongler#readme",
+  "bugs": {
+    "url": "https://github.com/Gryczka/wrongler/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Gryczka/wrongler.git"
+  },
+  "license": "MIT OR Apache-2.0",
+  "author": "Peter Gryczka",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "bin": {
+    "wrongler": "./bin/wrongler.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "README.md",
+    "LICENSE-MIT",
+    "LICENSE-APACHE"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "echo \"Tests coming soon\" && exit 0",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "wrangler": "^4.0.0"
+  },
+  "dependencies": {
+    "chalk": "^5.3.0",
+    "chokidar": "^4.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.0.0",
+    "wrangler": "^4.45.0"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,72 @@
+name: Check Wrangler Updates
+
+on:
+  schedule:
+    - cron: '0 12 * * *'  # Daily at noon UTC
+  workflow_dispatch:      # Manual trigger
+
+jobs:
+  check-updates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Check for wrangler updates
+        id: check
+        run: |
+          # Get current wrangler version from package.json
+          CURRENT=$(node -p "require('./package.json').peerDependencies.wrangler" | tr -d '^~')
+
+          # Get latest wrangler version from npm
+          LATEST=$(npm view wrangler version)
+
+          echo "current=$CURRENT" >> $GITHUB_OUTPUT
+          echo "latest=$LATEST" >> $GITHUB_OUTPUT
+
+          if [ "$CURRENT" != "$LATEST" ]; then
+            echo "needs_update=true" >> $GITHUB_OUTPUT
+            echo "Wrangler update available: $CURRENT -> $LATEST"
+          else
+            echo "needs_update=false" >> $GITHUB_OUTPUT
+            echo "Wrangler is up to date: $CURRENT"
+          fi
+
+      - name: Update package.json if needed
+        if: steps.check.outputs.needs_update == 'true'
+        run: |
+          # Update peer dependency version
+          npm pkg set peerDependencies.wrangler="^${{ steps.check.outputs.latest }}"
+          npm pkg set devDependencies.wrangler="^${{ steps.check.outputs.latest }}"
+
+      - name: Create Pull Request
+        if: steps.check.outputs.needs_update == 'true'
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update wrangler compatibility to v${{ steps.check.outputs.latest }}"
+          title: "Update wrangler compatibility to v${{ steps.check.outputs.latest }}"
+          body: |
+            ## Wrangler Update Available
+
+            Wrangler has been updated from `v${{ steps.check.outputs.current }}` to `v${{ steps.check.outputs.latest }}`.
+
+            This PR updates the peer dependency range to support the latest version.
+
+            ### Changes
+            - Updated `peerDependencies.wrangler` to `^${{ steps.check.outputs.latest }}`
+            - Updated `devDependencies.wrangler` to `^${{ steps.check.outputs.latest }}`
+
+            ### Action Required
+            - Review the [wrangler changelog](https://github.com/cloudflare/workers-sdk/blob/main/packages/wrangler/CHANGELOG.md)
+            - Test wrongler with the new wrangler version
+            - Merge if tests pass
+
+            ---
+            *This PR was automatically created by the Update Check workflow*
+          branch: update/wrangler-${{ steps.check.outputs.latest }}
+          delete-branch: true
