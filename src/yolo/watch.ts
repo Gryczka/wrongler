@@ -1,53 +1,11 @@
 import path from "node:path";
+import * as readline from "node:readline";
 import type { FSWatcher } from "chokidar";
 import { watch } from "chokidar";
 import { logger } from "../logger";
 import { debounce } from "../utils/debounce";
-import deploy from "./deploy";
-import { YoloOutputFormatter } from "./output-formatter";
-import type { Config } from "@cloudflare/workers-utils";
-import type { AssetsOptions } from "../assets";
-import type { Entry } from "../deployment-bundle/entry";
-import type { LegacyAssetPaths } from "../sites";
-
-type DeployParams = {
-	config: Config;
-	accountId: string | undefined;
-	entry: Entry;
-	rules: Config["rules"];
-	name: string;
-	env: string | undefined;
-	compatibilityDate: string | undefined;
-	compatibilityFlags: string[] | undefined;
-	legacyAssetPaths: LegacyAssetPaths | undefined;
-	assetsOptions: AssetsOptions | undefined;
-	vars: Record<string, string> | undefined;
-	defines: Record<string, string> | undefined;
-	alias: Record<string, string> | undefined;
-	triggers: string[] | undefined;
-	routes: string[] | undefined;
-	domains: string[] | undefined;
-	useServiceEnvironments: boolean | undefined;
-	jsxFactory: string | undefined;
-	jsxFragment: string | undefined;
-	tsconfig: string | undefined;
-	isWorkersSite: boolean;
-	minify: boolean | undefined;
-	outDir: string | undefined;
-	outFile: string | undefined;
-	dryRun: boolean | undefined;
-	noBundle: boolean | undefined;
-	keepVars: boolean | undefined;
-	logpush: boolean | undefined;
-	uploadSourceMaps: boolean | undefined;
-	oldAssetTtl: number | undefined;
-	projectRoot: string | undefined;
-	dispatchNamespace: string | undefined;
-	experimentalAutoCreate: boolean;
-	metafile: string | boolean | undefined;
-	containersRollout: "immediate" | "gradual" | undefined;
-	strict: boolean | undefined;
-};
+import deploy, { type DeployParams } from "./deploy";
+import { YoloOutputFormatter, type DeploymentStats } from "./output-formatter";
 
 interface WatchOptions {
 	verbose: boolean;
@@ -75,7 +33,14 @@ export async function startYoloMode(
 	let watcher: FSWatcher | null = null;
 	let isDeploying = false;
 	let pendingDeploy = false;
-	let abortController: AbortController | null = null;
+	const stats: DeploymentStats = {
+		successful: 0,
+		failed: 0,
+		totalTime: 0,
+	};
+
+	// Track if this is the first deployment
+	let isFirstDeploy = true;
 
 	/**
 	 * Performs a deployment
@@ -93,9 +58,6 @@ export async function startYoloMode(
 		const startTime = Date.now();
 
 		try {
-			// Create abort controller for this deployment
-			abortController = new AbortController();
-
 			formatter.formatDeployStart(
 				changedPath
 					? {
@@ -105,17 +67,7 @@ export async function startYoloMode(
 					: undefined
 			);
 
-			// Suppress normal deploy output in condensed mode
-			const originalLogLevel = logger.loggerLevel;
-			if (!options.verbose) {
-				logger.loggerLevel = "error";
-			}
-
 			const result = await deploy(deployParams);
-
-			if (!options.verbose) {
-				logger.loggerLevel = originalLogLevel;
-			}
 
 			const duration = Date.now() - startTime;
 
@@ -126,24 +78,34 @@ export async function startYoloMode(
 				success: true,
 				versionId: result.versionId ?? undefined,
 				workerUrl,
-				targets: result.targets?.map((url) => ({ name: "worker", url })),
+				targets: result.targets?.map((url: string) => ({ name: "worker", url })),
 				duration,
 			});
+
+			// Update stats
+			stats.successful++;
+			stats.totalTime += duration;
+			stats.lastDeployTime = new Date();
+
+			// Mark first deploy as complete
+			if (isFirstDeploy) {
+				isFirstDeploy = false;
+			}
 		} catch (error) {
 			const duration = Date.now() - startTime;
-
-			if (!options.verbose) {
-				logger.loggerLevel = logger.loggerLevel;
-			}
 
 			formatter.formatDeployError(
 				error instanceof Error ? error : new Error(String(error))
 			);
 
+			// Update stats
+			stats.failed++;
+			stats.totalTime += duration;
+			stats.lastDeployTime = new Date();
+
 			// Don't exit - stay in watch mode
 		} finally {
 			isDeploying = false;
-			abortController = null;
 
 			// If another change happened during deployment, trigger another deploy
 			if (pendingDeploy) {
@@ -156,6 +118,57 @@ export async function startYoloMode(
 	const debouncedDeploy = debounce(() => {
 		void performDeploy();
 	}, debounceMs);
+
+	// Function to setup keyboard shortcuts
+	const setupKeyboardShortcuts = () => {
+		if (process.stdin.isTTY) {
+			readline.emitKeypressEvents(process.stdin);
+			if (process.stdin.setRawMode) {
+				process.stdin.setRawMode(true);
+			}
+
+			process.stdin.on("keypress", (_str, key) => {
+				if (key.ctrl && key.name === "c") {
+					// Let the SIGINT handler take care of cleanup
+					process.kill(process.pid, "SIGINT");
+					return;
+				}
+
+				switch (key.name) {
+					case "r":
+						console.log("\n⚡ Manual deployment triggered...\n");
+						void performDeploy();
+						break;
+
+					case "c":
+						console.clear();
+						formatter.formatInitialDeploy();
+						break;
+
+					case "s":
+						formatter.formatStats(stats);
+						break;
+
+					case "h":
+					case "?":
+						formatter.formatHelp();
+						break;
+
+					case "q":
+						process.kill(process.pid, "SIGINT");
+						break;
+				}
+			});
+		}
+	};
+
+	// Perform initial deployment
+	console.log("⚡ Running initial deployment...\n");
+	await performDeploy();
+
+	// Setup keyboard shortcuts AFTER initial deployment
+	// This prevents stdin conflicts with wrangler's interactive prompts
+	setupKeyboardShortcuts();
 
 	// Set up file watcher
 	watcher = watch(watchPaths, {
@@ -222,7 +235,8 @@ export async function startYoloMode(
 		debouncedDeploy();
 	});
 
-	watcher.on("error", (error: Error) => {
+	watcher.on("error", (err: unknown) => {
+		const error = err instanceof Error ? err : new Error(String(err));
 		logger.error("File watcher error:", error);
 	});
 
@@ -232,7 +246,7 @@ export async function startYoloMode(
 			await watcher.close();
 			watcher = null;
 		}
-		formatter.formatExitMessage();
+		formatter.formatExitMessage(stats);
 		process.exit(0);
 	};
 

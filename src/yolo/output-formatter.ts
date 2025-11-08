@@ -14,6 +14,13 @@ export interface FileChange {
 	type: "change" | "add" | "unlink";
 }
 
+export interface DeploymentStats {
+	successful: number;
+	failed: number;
+	totalTime: number;
+	lastDeployTime?: Date;
+}
+
 export class YoloOutputFormatter {
 	private deploymentCount = 0;
 	private verbose: boolean;
@@ -23,7 +30,8 @@ export class YoloOutputFormatter {
 	}
 
 	formatInitialDeploy(): void {
-		console.log(chalk.cyan("\n🚀 YOLO Mode activated - watching for changes...\n"));
+		console.log(chalk.cyan("\n🚀 YOLO Mode activated - watching for changes..."));
+		console.log(chalk.dim("   Press 'h' for help, 'q' to quit\n"));
 	}
 
 	formatFileChange(change: FileChange): void {
@@ -112,8 +120,10 @@ export class YoloOutputFormatter {
 			console.log(chalk.red(`\n✗ Deployment #${this.deploymentCount} failed:`));
 			console.error(error);
 		} else {
+			// Error details are already printed by deploy function
+			// Just show a simple failure message
 			console.log(
-				chalk.red(`[${timestamp}] ✗ Deployment #${this.deploymentCount} failed: ${error.message}`)
+				chalk.red(`[${timestamp}] ✗ Deployment #${this.deploymentCount} failed`)
 			);
 		}
 		console.log(); // Empty line for readability
@@ -127,7 +137,40 @@ export class YoloOutputFormatter {
 		console.log();
 	}
 
-	formatExitMessage(): void {
-		console.log(chalk.cyan(`\n👋 YOLO Mode stopped after ${this.deploymentCount} deployments\n`));
+	formatExitMessage(stats?: DeploymentStats): void {
+		console.log(chalk.cyan(`\n👋 YOLO Mode stopped after ${this.deploymentCount} deployments`));
+		if (stats && (stats.successful > 0 || stats.failed > 0)) {
+			this.formatStats(stats);
+		}
+		console.log();
+	}
+
+	formatStats(stats: DeploymentStats): void {
+		const total = stats.successful + stats.failed;
+		const successRate = total > 0 ? ((stats.successful / total) * 100).toFixed(1) : "0.0";
+		const avgTime = total > 0 ? (stats.totalTime / total / 1000).toFixed(1) : "0.0";
+
+		console.log(chalk.cyan("\n📊 Session Statistics:"));
+		console.log(chalk.green(`   ✓ ${stats.successful} successful`) + chalk.red(`   ✗ ${stats.failed} failed`));
+		console.log(chalk.gray(`   📈 Success rate: ${successRate}%`));
+		console.log(chalk.gray(`   ⚡ Average time: ${avgTime}s`));
+
+		if (stats.lastDeployTime) {
+			const minutesAgo = Math.floor((Date.now() - stats.lastDeployTime.getTime()) / 1000 / 60);
+			const timeStr = minutesAgo === 0 ? "just now" : minutesAgo === 1 ? "1 minute ago" : `${minutesAgo} minutes ago`;
+			console.log(chalk.gray(`   🕐 Last deploy: ${timeStr}`));
+		}
+		console.log();
+	}
+
+	formatHelp(): void {
+		console.log(chalk.cyan("\n⌨️  Keyboard Shortcuts:"));
+		console.log(chalk.gray("   r       - Manual redeploy"));
+		console.log(chalk.gray("   c       - Clear screen"));
+		console.log(chalk.gray("   s       - Show statistics"));
+		console.log(chalk.gray("   h or ?  - Show this help"));
+		console.log(chalk.gray("   q       - Quit YOLO mode"));
+		console.log(chalk.gray("   Ctrl+C  - Quit YOLO mode"));
+		console.log();
 	}
 }
