@@ -1,6 +1,6 @@
 {
   "name": "@gryczka/wrongler",
-  "version": "4.0.0",
+  "version": "4.0.1",
   "description": "Wrangler with YOLO mode - auto-deploy on file changes",
   "keywords": [
     "wrongler",

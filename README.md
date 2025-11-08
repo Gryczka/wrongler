@@ -2,22 +2,27 @@
 
 > Wrangler with YOLO mode - because sometimes you just gotta ship it
 
+## ⚠️ WARNING: FOR FUN ONLY ⚠️
+
+**This project is called WRONGler for a reason.**
+
+- 🎲 **DO NOT use this for serious/production work**
+- 🎪 **This is a fun side project and experimental wrapper**
+- 💥 **YOLO deploy is exactly what it sounds like - use at your own risk**
+- 🎢 **Automatic deployments on every save can go hilariously wrong**
+- 🤡 **No warranties, no guarantees, just pure YOLO energy**
+
+If you're looking for a reliable, production-ready deployment tool, use [Wrangler](https://github.com/cloudflare/workers-sdk) directly. If you want to live dangerously and have some fun, welcome aboard! 🎉
+
+---
+
 **Wrongler** is a lightweight wrapper around [Cloudflare's Wrangler](https://github.com/cloudflare/workers-sdk) that adds **YOLO Mode** - automatic redeployment on file changes, inspired by AWS SAM's `sam sync --watch`.
-
-## Status: 🚧 In Development
-
-**Note:** Full YOLO mode implementation is coming soon! For now, wrongler acts as a pass-through to wrangler.
-
-**To use YOLO mode today**, install from the feature branch:
-```bash
-npm install github:Gryczka/workers-sdk-wrangler-yolo#feat/yolo-mode
-```
 
 ## Installation
 
 ```bash
 # Install wrongler
-npm install -g wrongler
+npm install -g @gryczka/wrongler
 
 # wrongler requires wrangler as a peer dependency
 npm install -g wrangler
@@ -25,23 +30,22 @@ npm install -g wrangler
 
 Or use both together:
 ```bash
-npm install -g wrongler wrangler
+npm install -g @gryczka/wrongler wrangler
 ```
 
 ## What is YOLO Mode?
 
 YOLO Mode watches your Worker files and automatically redeploys to Cloudflare's edge on every save. Perfect for rapid development iterations!
 
-### Planned Features
+### Features
 
 - ✅ **Auto-deploy on save** - 50ms debounce for rapid changes
 - ✅ **Smart file watching** - Excludes build artifacts automatically
 - ✅ **Condensed output** - Clean, minimal deployment info
-- ✅ **Production warnings** - Warns when deploying to production
 - ✅ **Error resilient** - Stays in watch mode even if deployment fails
-- ✅ **Version tracking** - Shows both main URL and version-specific preview URLs
+- ✅ **Graceful shutdown** - Clean exit on Ctrl+C
 
-## Usage (Planned)
+## Usage
 
 ### Basic YOLO Mode
 ```bash
@@ -54,13 +58,6 @@ This will:
 3. Automatically redeploy on save
 4. Show condensed deployment output with URLs
 
-### Skip Confirmation
-```bash
-wrongler deploy --yolo --yolo
-```
-
-Passing `--yolo` twice skips the confirmation prompt.
-
 ### Verbose Output
 ```bash
 wrongler deploy --yolo --verbose
@@ -68,12 +65,22 @@ wrongler deploy --yolo --verbose
 
 Shows full deployment output instead of condensed mode.
 
-### With Other Flags
+### With Environment
 ```bash
-wrongler deploy --yolo --env staging --minify
+wrongler deploy --yolo --env production
 ```
 
-All standard Wrangler flags work with YOLO mode!
+### With Custom Entry Point
+```bash
+wrongler deploy src/worker.ts --yolo
+```
+
+### With Custom Worker Name
+```bash
+wrongler deploy --yolo --name my-worker
+```
+
+All standard Wrangler deploy flags work with YOLO mode!
 
 ### Example Output
 
@@ -114,13 +121,17 @@ wrongler kv:key put
 
 ## Why "Wrongler"?
 
-Because adding auto-deploy on save is either brilliantly right or hilariously wrong depending on your perspective. YOLO! 🎉
+Because adding auto-deploy on save is either brilliantly right or hilariously wrong depending on your perspective. It's called WRONG-ler because:
+
+- Every file save triggers a deployment (what could go wrong? 😅)
+- No confirmation, no safety nets, just pure deployment chaos
+- It's the tool equivalent of "hold my beer and watch this"
+
+**Use YOLO deploy solely for fun and at your own risk.** YOLO! 🎉
 
 ## Differences from Wrangler
 
-Currently: None! Wrongler passes all commands through to wrangler.
-
-Planned: Addition of `--yolo` and `--verbose` flags to the `deploy` command.
+Wrongler adds the `--yolo` flag to the `deploy` command for automatic redeployment on file changes. All other commands work exactly the same as wrangler.
 
 ## Development
 
@@ -158,8 +169,9 @@ Wrongler uses GitHub Actions to automatically detect new wrangler versions:
 
 ## Roadmap
 
-- [ ] v1.0.0: Full YOLO mode implementation
-- [ ] Configurable debounce timing
+- [x] v4.0.0: Full YOLO mode implementation
+- [ ] Extract deployment URLs from wrangler output
+- [ ] Configurable debounce timing in wrangler.toml
 - [ ] Watch pattern configuration in wrangler.toml
 - [ ] Deployment history and rollback
 - [ ] Interactive mode with keyboard shortcuts
@@ -191,12 +203,20 @@ This project maintains the same dual MIT OR Apache-2.0 license as the original W
 ## Links
 
 - [GitHub Repository](https://github.com/Gryczka/wrongler)
-- [npm Package](https://www.npmjs.com/package/wrongler) *(coming soon)*
+- [npm Package](https://www.npmjs.com/package/@gryczka/wrongler)
 - [Feature Branch with YOLO Mode](https://github.com/Gryczka/workers-sdk-wrangler-yolo/tree/feat/yolo-mode)
 - [Original Wrangler](https://github.com/cloudflare/workers-sdk)
 
 ---
 
-**Disclaimer**: This is an unofficial wrapper and is not affiliated with or endorsed by Cloudflare.
+## Disclaimer
 
-**Made with ☕ and YOLO spirit**
+**This is an unofficial, experimental wrapper for fun purposes only.** Not affiliated with or endorsed by Cloudflare.
+
+⚠️ **IMPORTANT**:
+- This project is for entertainment and experimentation
+- Not intended for production or serious development work
+- Use at your own risk - automatic deployments can have unexpected consequences
+- When in doubt, use [official Wrangler](https://github.com/cloudflare/workers-sdk) instead
+
+**Made with ☕ and YOLO spirit** - but seriously, don't use this for anything important! 🎲
