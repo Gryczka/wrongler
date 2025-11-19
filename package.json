@@ -23,7 +23,7 @@
     "url": "https://github.com/Gryczka/wrongler.git"
   },
   "license": "MIT OR Apache-2.0",
-  "author": "Peter Gryczka",
+  "author": "Gryczka",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "bin": {

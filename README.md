@@ -158,35 +158,6 @@ wrongler deploy
 npm run build
 ```
 
-## Automated Updates
-
-Wrongler uses GitHub Actions to automatically detect new wrangler versions:
-
-- **Daily checks** - Runs every day at noon UTC
-- **Auto PR creation** - Creates PR when new wrangler version detected
-- **Test automation** - Runs tests against new versions
-- **Easy merging** - Review and merge if tests pass
-
-## Roadmap
-
-- [x] v4.0.0: Full YOLO mode implementation
-- [ ] Extract deployment URLs from wrangler output
-- [ ] Configurable debounce timing in wrangler.toml
-- [ ] Watch pattern configuration in wrangler.toml
-- [ ] Deployment history and rollback
-- [ ] Interactive mode with keyboard shortcuts
-- [ ] Support for Pages projects
-- [ ] Plugin architecture for custom watch behaviors
-
-## Contributing
-
-Contributions welcome! This is a fun side project, so feel free to:
-
-- Report bugs
-- Suggest features
-- Submit PRs
-- Share your YOLO stories
-
 ## License
 
 This project maintains the same dual MIT OR Apache-2.0 license as the original Wrangler project.
@@ -197,7 +168,7 @@ This project maintains the same dual MIT OR Apache-2.0 license as the original W
 ## Credits
 
 - **Wrangler**: Created and maintained by [Cloudflare](https://github.com/cloudflare/workers-sdk)
-- **YOLO Mode**: Added by [Peter Gryczka](https://github.com/Gryczka)
+- **YOLO Mode**: Added by [Gryczka](https://github.com/Gryczka)
 - **Inspired by**: AWS SAM's `sam sync --watch` feature
 
 ## Links

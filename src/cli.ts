@@ -3,6 +3,7 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { existsSync } from "node:fs";
+import chalk from "chalk";
 import { parseArgs } from "./args";
 import { loadConfig } from "./config";
 import { startYoloMode } from "./yolo/watch";
@@ -25,6 +26,12 @@ function checkWranglerInstalled(): boolean {
 
 // Main CLI logic
 async function main() {
+	// Display warning that this is NOT the official Wrangler
+	console.log(chalk.yellow.bold("\n⚠️  WARNING: You are using WRONG-ler, not Wrangler!"));
+	console.log(chalk.yellow("   This is an experimental wrapper for fun purposes only."));
+	console.log(chalk.yellow("   Looking for the official Cloudflare CLI tool?"));
+	console.log(chalk.cyan("   → https://www.npmjs.com/package/wrangler\n"));
+
 	// Check if wrangler is installed
 	if (!checkWranglerInstalled()) {
 		console.error("Error: wrangler is not installed.");
