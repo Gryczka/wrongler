@@ -5,18 +5,22 @@
 import { spawn } from "node:child_process";
 import type { DeploymentResult, Config, Entry, AssetsOptions, LegacyAssetPaths } from "../types";
 
+const ANSI_PATTERN = /\u001b\[[0-9;]*m/g;
+
 /**
- * Parses wrangler output to extract deployment information
+ * Parses deploy output (from wrangler or cf, which print the same
+ * "Current Version ID:" and workers.dev lines) to extract deployment info
  */
-function parseWranglerOutput(output: string): { url?: string; versionId?: string } {
-	const lines = output.split("\n");
+export function parseDeployOutput(output: string): { url?: string; versionId?: string } {
+	const lines = output.replace(ANSI_PATTERN, "").split("\n");
 	let url: string | undefined;
 	let versionId: string | undefined;
 
 	for (const line of lines) {
-		// Match deployment URL patterns
+		// Match deployment URL patterns, skipping help-text placeholders
+		// such as https://<subdomain>.workers.dev
 		if (line.includes("https://") && line.includes(".workers.dev")) {
-			const match = line.match(/https:\/\/[^\s]+\.workers\.dev[^\s]*/);
+			const match = line.match(/https:\/\/[^\s<>]+\.workers\.dev[^\s]*/);
 			if (match && !url) {
 				url = match[0];
 			}
@@ -172,7 +176,7 @@ export default async function deploy(params: DeployParams): Promise<DeploymentRe
 			if (code === 0) {
 				// Parse output to extract deployment info
 				const combinedOutput = stdout + stderr;
-				const { url, versionId } = parseWranglerOutput(combinedOutput);
+				const { url, versionId } = parseDeployOutput(combinedOutput);
 
 				resolve({
 					versionId,

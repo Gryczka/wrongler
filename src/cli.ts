@@ -6,12 +6,24 @@ import { existsSync } from "node:fs";
 import chalk from "chalk";
 import { parseArgs } from "./args";
 import { loadConfig } from "./config";
-import { startYoloMode } from "./yolo/watch";
+import { startYoloMode, startYoloWatch, createCfIgnoreMatcher } from "./yolo/watch";
 import type { DeployParams } from "./yolo/deploy";
 import { getCachedAccountId } from "./cache";
+import {
+	resolveMode,
+	getCommand,
+	mapEnvToMode,
+	hasCfConfig,
+	hasWranglerConfig,
+	WRANGLER_ONLY_COMMANDS,
+	CF_PROJECT_COMMANDS,
+	type ModeResolution,
+} from "./mode";
+import { resolveCfBinary, passThroughCf, printCfNotInstalled, type CfBinary } from "./cf";
+import { buildCfDeployArgs, deployWithCf } from "./yolo/cf-deploy";
 
 // Parse command line arguments
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
 
 // Check if wrangler is installed
 function checkWranglerInstalled(): boolean {
@@ -24,21 +36,51 @@ function checkWranglerInstalled(): boolean {
 	}
 }
 
+function printWranglerNotInstalled() {
+	console.error("Error: wrangler is not installed.");
+	console.error("");
+	console.error("Wrongler requires wrangler to be installed as a peer dependency.");
+	console.error("Install it with: npm install wrangler");
+	console.error("");
+}
+
+// Display warning that this is NOT the official CLI. Written to stderr so
+// JSON output on stdout (cf's default, wrangler's --json) can still be piped.
+function printBanner(resolution: ModeResolution) {
+	const official = resolution.mode === "cf" ? "cf" : "Wrangler";
+	const pkg = resolution.mode === "cf" ? "cf" : "wrangler";
+	console.error(chalk.yellow.bold(`\n⚠️  WARNING: You are using WRONG-ler, not ${official}!`));
+	console.error(chalk.yellow("   This is an experimental wrapper for fun purposes only."));
+	console.error(chalk.yellow("   Looking for the official Cloudflare CLI tool?"));
+	console.error(chalk.cyan(`   → https://www.npmjs.com/package/${pkg}`));
+
+	if (resolution.mode === "cf") {
+		const reason =
+			resolution.source === "flag"
+				? "--cf"
+				: resolution.source === "env"
+					? "WRONGLER_CLI=cf"
+					: "found cloudflare.config.ts";
+		console.error(chalk.dim(`   cf mode (${reason})`));
+	}
+	console.error("");
+}
+
 // Main CLI logic
 async function main() {
-	// Display warning that this is NOT the official Wrangler
-	console.log(chalk.yellow.bold("\n⚠️  WARNING: You are using WRONG-ler, not Wrangler!"));
-	console.log(chalk.yellow("   This is an experimental wrapper for fun purposes only."));
-	console.log(chalk.yellow("   Looking for the official Cloudflare CLI tool?"));
-	console.log(chalk.cyan("   → https://www.npmjs.com/package/wrangler\n"));
+	const resolution = resolveMode(rawArgs);
+	const args = resolution.args;
+
+	printBanner(resolution);
+
+	if (resolution.mode === "cf") {
+		await runCfMode(args);
+		return;
+	}
 
 	// Check if wrangler is installed
 	if (!checkWranglerInstalled()) {
-		console.error("Error: wrangler is not installed.");
-		console.error("");
-		console.error("Wrongler requires wrangler to be installed as a peer dependency.");
-		console.error("Install it with: npm install wrangler");
-		console.error("");
+		printWranglerNotInstalled();
 		process.exit(1);
 	}
 
@@ -192,6 +234,87 @@ async function handleYoloMode(parsed: ReturnType<typeof parseArgs>) {
 		verbose: parsed.verbose || false,
 		debounceMs: 50,
 	});
+}
+
+// Run a command with Cloudflare's cf CLI
+async function runCfMode(args: string[]) {
+	const projectRoot = process.cwd();
+	const command = getCommand(args);
+
+	// Live logs and single-secret commands are still Wrangler-only during the cf beta
+	if (command && WRANGLER_ONLY_COMMANDS.has(command)) {
+		console.error(chalk.dim(`   cf has no "${command}" command yet, so this one goes to Wrangler.\n`));
+		if (!checkWranglerInstalled()) {
+			printWranglerNotInstalled();
+			process.exit(1);
+		}
+		passThroughWrangler(args);
+		return;
+	}
+
+	const cf = resolveCfBinary(projectRoot);
+	if (!cf) {
+		printCfNotInstalled();
+		process.exit(1);
+	}
+
+	let cfArgs = args;
+
+	if (command && CF_PROJECT_COMMANDS.has(command)) {
+		// cf must not dev/build/deploy a project that only has a Wrangler config
+		if (!hasCfConfig(projectRoot) && hasWranglerConfig(projectRoot)) {
+			console.error("Error: this project has a Wrangler config but no cloudflare.config.ts.");
+			console.error("");
+			console.error(`cf can't ${command} it until it's migrated. Preview the migration with:`);
+			console.error("  wrongler --cf migrate --dry-run");
+			console.error("");
+			console.error(`Or keep using Wrangler: wrongler --wrangler ${command}`);
+			console.error("");
+			process.exit(1);
+		}
+
+		// Wrangler's --env maps to cf's --mode
+		const { args: mapped, mapped: modeName } = mapEnvToMode(args);
+		if (modeName !== undefined) {
+			console.error(chalk.dim(`   Using --mode ${modeName} (cf's equivalent of --env)\n`));
+		}
+		cfArgs = mapped;
+	}
+
+	if (command === "deploy" && cfArgs.includes("--yolo")) {
+		await handleCfYoloMode(cf, cfArgs, projectRoot);
+		return;
+	}
+
+	passThroughCf(cf, cfArgs);
+}
+
+// Handle YOLO mode deployment with cf
+async function handleCfYoloMode(cf: CfBinary, args: string[], projectRoot: string) {
+	if (!hasCfConfig(projectRoot)) {
+		console.error("Error: Could not find cloudflare.config.ts in the current directory.");
+		console.error("");
+		console.error("YOLO mode with cf needs a cloudflare.config.ts project file.");
+		console.error("");
+		process.exit(1);
+	}
+
+	const verbose = args.includes("--verbose") || args.includes("-v");
+	const deployArgs = buildCfDeployArgs(args);
+
+	console.log(`✓ Using cf ${cf.version}\n`);
+
+	await startYoloWatch(
+		{
+			deploy: () => deployWithCf({ cf, args: deployArgs, projectRoot, verbose }),
+			watchPaths: [projectRoot],
+			ignored: createCfIgnoreMatcher(projectRoot),
+		},
+		{
+			verbose,
+			debounceMs: 50,
+		}
+	);
 }
 
 // Pass command through to wrangler

@@ -5,11 +5,44 @@ import { watch } from "chokidar";
 import { logger } from "../logger";
 import { debounce } from "../utils/debounce";
 import deploy, { type DeployParams } from "./deploy";
+import type { DeploymentResult } from "../types";
 import { YoloOutputFormatter, type DeploymentStats } from "./output-formatter";
 
 interface WatchOptions {
 	verbose: boolean;
 	debounceMs?: number;
+}
+
+/**
+ * What YOLO mode watches and how it deploys. Lets the same watch loop drive
+ * either `wrangler deploy` or `cf deploy`.
+ */
+export interface YoloTarget {
+	/** Runs one deployment */
+	deploy: () => Promise<DeploymentResult>;
+	/** Files and directories to watch */
+	watchPaths: string[];
+	/** Extra ignore rule on top of the defaults */
+	ignored?: (filePath: string) => boolean;
+}
+
+/** Directories a cf project writes build output and state into */
+const CF_GENERATED_DIRS = new Set(["node_modules", ".git", "dist", "build", ".wrangler", ".cloudflare"]);
+
+/**
+ * Ignore rule for watching a cf project root: skips dependency, build output
+ * and state directories (cf builds into dist/ and .cloudflare/). Only path
+ * segments below the project root are checked, so a project that itself
+ * lives under a folder named "build" is still watched.
+ */
+export function createCfIgnoreMatcher(projectRoot: string): (filePath: string) => boolean {
+	return (filePath: string) => {
+		const relative = path.relative(projectRoot, filePath);
+		if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+			return false;
+		}
+		return relative.split(/[\\/]/).some((segment) => CF_GENERATED_DIRS.has(segment));
+	};
 }
 
 /**
@@ -19,11 +52,24 @@ export async function startYoloMode(
 	deployParams: DeployParams,
 	options: WatchOptions
 ): Promise<void> {
+	await startYoloWatch(
+		{
+			deploy: () => deploy(deployParams),
+			watchPaths: getWatchPaths(deployParams),
+		},
+		options
+	);
+}
+
+/**
+ * Core YOLO loop: initial deploy, then redeploy on every file change
+ */
+export async function startYoloWatch(target: YoloTarget, options: WatchOptions): Promise<void> {
 	const formatter = new YoloOutputFormatter(options.verbose);
 	const debounceMs = options.debounceMs ?? 50;
 
 	// Determine which files to watch
-	const watchPaths = getWatchPaths(deployParams);
+	const watchPaths = target.watchPaths;
 
 	formatter.formatInitialDeploy();
 	if (!options.verbose) {
@@ -67,7 +113,7 @@ export async function startYoloMode(
 					: undefined
 			);
 
-			const result = await deploy(deployParams);
+			const result = await target.deploy();
 
 			const duration = Date.now() - startTime;
 
@@ -183,6 +229,7 @@ export async function startYoloMode(
 				// Ignore any path containing .wrangler directory
 				return filePath.includes("/.wrangler/") || filePath.includes("\\.wrangler\\");
 			},
+			...(target.ignored ? [target.ignored] : []),
 		],
 		persistent: true,
 		ignoreInitial: true,
