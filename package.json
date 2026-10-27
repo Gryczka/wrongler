@@ -1,10 +1,11 @@
 {
   "name": "@gryczka/wrongler",
   "version": "4.0.2",
-  "description": "Wrangler with YOLO mode - auto-deploy on file changes",
+  "description": "Wrangler (and cf) with YOLO mode - auto-deploy on file changes",
   "keywords": [
     "wrongler",
     "wrangler",
+    "cf",
     "yolo",
     "cloudflare",
     "workers",
@@ -42,7 +43,13 @@
     "prepublishOnly": "npm run build"
   },
   "peerDependencies": {
-    "wrangler": "^4.0.0"
+    "wrangler": "^4.0.0",
+    "cf": ">=1.0.0-beta.0 <2"
+  },
+  "peerDependenciesMeta": {
+    "cf": {
+      "optional": true
+    }
   },
   "dependencies": {
     "@gryczka/wrongler": "^4.0.0",

@@ -119,6 +119,49 @@ wrongler kv:key put
 # ... all other wrangler commands
 ```
 
+## cf Mode
+
+Cloudflare's newer [`cf` CLI](https://www.npmjs.com/package/cf) (in beta) covers the whole Cloudflare API and is set to replace Wrangler. Wrongler can drive it instead of Wrangler, YOLO mode included.
+
+```bash
+# cf needs Node.js 22.23+ or 24.22+
+npm install -g cf
+```
+
+### Turning it on
+
+Wrongler picks the CLI in this order:
+
+1. **Flags:** `--cf` or `--wrangler`, anywhere in the command
+2. **Environment:** `WRONGLER_CLI=cf` or `WRONGLER_CLI=wrangler`
+3. **Auto-detect:** a `cloudflare.config.ts` in the current folder with no Wrangler config means cf. A Wrangler config (`wrangler.toml`, `wrangler.json` or `wrangler.jsonc`) means Wrangler, following Cloudflare's guidance.
+4. **Default:** Wrangler
+
+```bash
+wrongler --cf zones list
+wrongler --cf d1 list | jq '.[].name'
+WRONGLER_CLI=cf wrongler workers list
+```
+
+### YOLO Mode with cf
+
+In a project with `cloudflare.config.ts`:
+
+```bash
+wrongler deploy --yolo
+wrongler deploy --yolo --mode staging
+```
+
+Each save runs `cf deploy`. Wrongler watches the project folder, skipping `node_modules/`, `dist/`, `.cloudflare/`, `.wrangler/` and `.git/`. Other `cf deploy` flags pass through, and `--verbose` shows cf's full output.
+
+### Good to know
+
+- **`--env` becomes `--mode`.** For `deploy`, `dev` and `build`, a Wrangler-style `--env staging` is passed to cf as `--mode staging`.
+- **`tail` and `secret` still go to Wrangler.** cf has no live logs or single-secret commands yet, so in cf mode these run through Wrangler.
+- **Wrangler projects need migrating first.** cf won't `deploy`, `dev` or `build` a project that only has a Wrangler config. Preview the migration with `wrongler --cf migrate --dry-run`.
+- **The warning banner goes to stderr**, so cf's JSON output on stdout pipes cleanly into `jq`.
+- **cf is found as an npm package**, preferring the project's own copy, then one installed next to wrongler, then the global install. It is never looked up on PATH, because the Cloud Foundry CLI is also called `cf`.
+
 ## Why "Wrongler"?
 
 Because adding auto-deploy on save is either brilliantly right or hilariously wrong depending on your perspective. It's called WRONG-ler because:
@@ -131,7 +174,7 @@ Because adding auto-deploy on save is either brilliantly right or hilariously wr
 
 ## Differences from Wrangler
 
-Wrongler adds the `--yolo` flag to the `deploy` command for automatic redeployment on file changes. All other commands work exactly the same as wrangler.
+Wrongler adds the `--yolo` flag to the `deploy` command for automatic redeployment on file changes, plus `--cf` / `--wrangler` to choose which Cloudflare CLI runs (see [cf Mode](#cf-mode)). All other commands work exactly the same as the underlying CLI.
 
 ## Development
 
