@@ -173,11 +173,8 @@ export async function startYoloMode(
 	// Set up file watcher
 	watcher = watch(watchPaths, {
 		ignored: [
-			"**/node_modules/**",
-			"**/.git/**",
-			"**/.wrangler/**",
-			"**/dist/**",
-			"**/build/**",
+			// chokidar v4 dropped glob support, so match directory names ourselves
+			createIgnoreMatcher(process.cwd()),
 			// Additional patterns to catch build artifacts
 			(filePath: string) => {
 				// Ignore any path containing .wrangler directory
@@ -262,6 +259,24 @@ export async function startYoloMode(
 	await new Promise(() => {
 		// This promise never resolves - we stay in watch mode until interrupted
 	});
+}
+
+/** Dependency, VCS, build output and state directories YOLO mode never watches */
+const IGNORED_DIRS = new Set(["node_modules", ".git", ".wrangler", "dist", "build"]);
+
+/**
+ * Ignore rule for the watcher: skips anything inside one of IGNORED_DIRS.
+ * Only path segments below the project root are checked, so a project that
+ * itself lives under a folder named "build" or "dist" still gets watched.
+ */
+export function createIgnoreMatcher(projectRoot: string): (filePath: string) => boolean {
+	return (filePath: string) => {
+		const relative = path.relative(projectRoot, path.resolve(projectRoot, filePath));
+		if (!relative || relative.startsWith("..") || path.isAbsolute(relative)) {
+			return false;
+		}
+		return relative.split(/[\\/]/).some((segment) => IGNORED_DIRS.has(segment));
+	};
 }
 
 /**

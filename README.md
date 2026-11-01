@@ -20,6 +20,8 @@ If you're looking for a reliable, production-ready deployment tool, use [Wrangle
 
 ## Installation
 
+Requires Node.js 22.12 or later (current Wrangler needs Node 22).
+
 ```bash
 # Install wrongler
 npm install -g @gryczka/wrongler
@@ -40,7 +42,8 @@ YOLO Mode watches your Worker files and automatically redeploys to Cloudflare's 
 ### Features
 
 - ✅ **Auto-deploy on save** - 50ms debounce for rapid changes
-- ✅ **Smart file watching** - Excludes build artifacts automatically
+- ✅ **Smart file watching** - Skips `node_modules`, `.git`, `.wrangler`, `dist` and `build`
+- ✅ **Any Wrangler config** - Reads `wrangler.json`, `wrangler.jsonc` (comments and all) or `wrangler.toml`
 - ✅ **Condensed output** - Clean, minimal deployment info
 - ✅ **Error resilient** - Stays in watch mode even if deployment fails
 - ✅ **Graceful shutdown** - Clean exit on Ctrl+C
@@ -156,6 +159,11 @@ wrongler deploy
 ### Building
 ```bash
 npm run build
+```
+
+### Testing
+```bash
+npm test   # builds, then runs the node:test suite in test/
 ```
 
 ## License
