@@ -120,10 +120,10 @@ export class YoloOutputFormatter {
 			console.log(chalk.red(`\n✗ Deployment #${this.deploymentCount} failed:`));
 			console.error(error);
 		} else {
-			// Error details are already printed by deploy function
-			// Just show a simple failure message
+			// Wrangler's own output is already printed by the deploy function,
+			// but errors raised before Wrangler runs would otherwise vanish
 			console.log(
-				chalk.red(`[${timestamp}] ✗ Deployment #${this.deploymentCount} failed`)
+				chalk.red(`[${timestamp}] ✗ Deployment #${this.deploymentCount} failed: ${error.message}`)
 			);
 		}
 		console.log(); // Empty line for readability

@@ -3,6 +3,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { resolveWranglerBin } from "../wrangler-bin";
 import type { DeploymentResult, Config, Entry, AssetsOptions, LegacyAssetPaths } from "../types";
 
 /**
@@ -82,7 +83,7 @@ export default async function deploy(params: DeployParams): Promise<DeploymentRe
 		// Find wrangler binary
 		let wranglerPath: string;
 		try {
-			wranglerPath = require.resolve("wrangler/bin/wrangler.js");
+			wranglerPath = resolveWranglerBin();
 		} catch {
 			reject(new Error("wrangler is not installed"));
 			return;
