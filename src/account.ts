@@ -3,6 +3,7 @@
  */
 
 import { spawn } from "node:child_process";
+import { resolveWranglerBin } from "./wrangler-bin";
 import * as readline from "node:readline/promises";
 import { stdin as input, stdout as output } from "node:process";
 
@@ -59,7 +60,7 @@ export async function isLoggedIn(): Promise<boolean> {
 	return new Promise((resolve) => {
 		let wranglerPath: string;
 		try {
-			wranglerPath = require.resolve("wrangler/bin/wrangler.js");
+			wranglerPath = resolveWranglerBin();
 		} catch {
 			resolve(false);
 			return;
@@ -109,7 +110,7 @@ export async function listAccounts(): Promise<Account[]> {
 	return new Promise((resolve, reject) => {
 		let wranglerPath: string;
 		try {
-			wranglerPath = require.resolve("wrangler/bin/wrangler.js");
+			wranglerPath = resolveWranglerBin();
 		} catch {
 			reject(new Error("wrangler is not installed"));
 			return;
@@ -178,7 +179,7 @@ export async function runLogin(): Promise<boolean> {
 	return new Promise((resolve, reject) => {
 		let wranglerPath: string;
 		try {
-			wranglerPath = require.resolve("wrangler/bin/wrangler.js");
+			wranglerPath = resolveWranglerBin();
 		} catch {
 			reject(new Error("wrangler is not installed"));
 			return;

@@ -66,18 +66,18 @@ export class YoloOutputFormatter {
 			}
 		} else {
 			// Condensed output with both URLs
-			const mainUrl = result.workerUrl || result.targets?.[0]?.url || "N/A";
+			const mainUrl = result.workerUrl || result.targets?.[0]?.url;
 
 			console.log(
 				chalk.green(`[${timestamp}] ✓ Deployment #${this.deploymentCount}`) +
 				chalk.gray(` (${result.duration}ms)`)
 			);
 
-			// Show main worker URL
-			console.log(chalk.dim(`  └─ Worker: ${mainUrl}`));
+			// Show main worker URL (dry runs and route-only workers don't print one)
+			console.log(chalk.dim(`  └─ Worker: ${mainUrl ?? "no workers.dev URL this time (dry run?)"}`));
 
 			// Show version-specific preview URL if versionId is available
-			if (result.versionId) {
+			if (result.versionId && mainUrl) {
 				// Extract worker name from URL to construct version URL
 				const versionUrl = this.constructVersionUrl(mainUrl, result.versionId);
 				if (versionUrl) {
@@ -120,10 +120,10 @@ export class YoloOutputFormatter {
 			console.log(chalk.red(`\n✗ Deployment #${this.deploymentCount} failed:`));
 			console.error(error);
 		} else {
-			// Error details are already printed by deploy function
-			// Just show a simple failure message
+			// Wrangler's own output is already printed by the deploy function,
+			// but errors raised before Wrangler runs would otherwise vanish
 			console.log(
-				chalk.red(`[${timestamp}] ✗ Deployment #${this.deploymentCount} failed`)
+				chalk.red(`[${timestamp}] ✗ Deployment #${this.deploymentCount} failed: ${error.message}`)
 			);
 		}
 		console.log(); // Empty line for readability

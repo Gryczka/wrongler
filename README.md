@@ -20,6 +20,8 @@ If you're looking for a reliable, production-ready deployment tool, use [Wrangle
 
 ## Installation
 
+Requires Node.js 22.12 or later (current Wrangler needs Node 22).
+
 ```bash
 # Install wrongler
 npm install -g @gryczka/wrongler
@@ -40,7 +42,9 @@ YOLO Mode watches your Worker files and automatically redeploys to Cloudflare's 
 ### Features
 
 - ✅ **Auto-deploy on save** - 50ms debounce for rapid changes
-- ✅ **Smart file watching** - Excludes build artifacts automatically
+- ✅ **Smart file watching** - Skips `node_modules`, `.git`, `.wrangler`, `dist` and `build`
+- ✅ **Any Wrangler config** - Reads `wrangler.json`, `wrangler.jsonc` (comments and all) or `wrangler.toml`, or whatever you point `--config` at
+- ✅ **Static assets too** - Your `assets.directory` (or Workers Sites bucket) is watched, unless it's one of the skipped folders above
 - ✅ **Condensed output** - Clean, minimal deployment info
 - ✅ **Error resilient** - Stays in watch mode even if deployment fails
 - ✅ **Graceful shutdown** - Clean exit on Ctrl+C
@@ -67,8 +71,10 @@ Shows full deployment output instead of condensed mode.
 
 ### With Environment
 ```bash
-wrongler deploy --yolo --env production
+wrongler deploy --yolo --env staging
 ```
+
+Deploys to the same Worker plain `wrangler deploy --env staging` would (`my-worker-staging` by default), not your production one.
 
 ### With Custom Entry Point
 ```bash
@@ -80,7 +86,7 @@ wrongler deploy src/worker.ts --yolo
 wrongler deploy --yolo --name my-worker
 ```
 
-All standard Wrangler deploy flags work with YOLO mode!
+All standard Wrangler deploy flags work with YOLO mode! Every redeploy is just your exact command again, minus `--yolo` and `--verbose`/`-v`, so `--config`, `--var`, `--keep-vars`, `--routes` and friends reach Wrangler untouched.
 
 ### Example Output
 
@@ -156,6 +162,11 @@ wrongler deploy
 ### Building
 ```bash
 npm run build
+```
+
+### Testing
+```bash
+npm test   # builds, then runs the node:test suite in test/
 ```
 
 ## License
