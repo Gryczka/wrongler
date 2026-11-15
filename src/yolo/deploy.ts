@@ -73,6 +73,66 @@ export interface DeployParams {
 	containersRollout: "immediate" | "gradual" | undefined;
 	strict: boolean | undefined;
 	verbose: boolean | undefined;
+	/**
+	 * Full argv for Wrangler, starting with "deploy". When set, it's used as-is
+	 * and the individual fields above are only informational. The CLI always
+	 * sets this, so --env, --config and any other flag reach Wrangler unchanged.
+	 */
+	wranglerArgs?: string[];
+}
+
+/**
+ * Builds the argv for `wrangler deploy`
+ */
+export function buildDeployArgs(params: DeployParams): string[] {
+	if (params.wranglerArgs) {
+		return [...params.wranglerArgs];
+	}
+
+	// Build wrangler deploy command arguments from individual fields
+	const args: string[] = ["deploy"];
+
+	// Add entry file
+	if (params.entry.file) {
+		args.push(params.entry.file);
+	}
+
+	// Add worker name
+	if (params.name) {
+		args.push("--name", params.name);
+	}
+
+	// Add environment
+	if (params.env) {
+		args.push("--env", params.env);
+	}
+
+	// Add compatibility date
+	if (params.compatibilityDate) {
+		args.push("--compatibility-date", params.compatibilityDate);
+	}
+
+	// Add compatibility flags
+	if (params.compatibilityFlags && params.compatibilityFlags.length > 0) {
+		for (const flag of params.compatibilityFlags) {
+			args.push("--compatibility-flags", flag);
+		}
+	}
+
+	// Add other flags
+	if (params.minify) {
+		args.push("--minify");
+	}
+
+	if (params.noBundle) {
+		args.push("--no-bundle");
+	}
+
+	if (params.dryRun) {
+		args.push("--dry-run");
+	}
+
+	return args;
 }
 
 /**
@@ -89,48 +149,7 @@ export default async function deploy(params: DeployParams): Promise<DeploymentRe
 			return;
 		}
 
-		// Build wrangler deploy command arguments
-		const args: string[] = ["deploy"];
-
-		// Add entry file
-		if (params.entry.file) {
-			args.push(params.entry.file);
-		}
-
-		// Add worker name
-		if (params.name) {
-			args.push("--name", params.name);
-		}
-
-		// Add environment
-		if (params.env) {
-			args.push("--env", params.env);
-		}
-
-		// Add compatibility date
-		if (params.compatibilityDate) {
-			args.push("--compatibility-date", params.compatibilityDate);
-		}
-
-		// Add compatibility flags
-		if (params.compatibilityFlags && params.compatibilityFlags.length > 0) {
-			for (const flag of params.compatibilityFlags) {
-				args.push("--compatibility-flags", flag);
-			}
-		}
-
-		// Add other flags
-		if (params.minify) {
-			args.push("--minify");
-		}
-
-		if (params.noBundle) {
-			args.push("--no-bundle");
-		}
-
-		if (params.dryRun) {
-			args.push("--dry-run");
-		}
+		const args = buildDeployArgs(params);
 
 		// Decide stdio mode based on verbose flag
 		const stdio: import("child_process").StdioOptions = params.verbose

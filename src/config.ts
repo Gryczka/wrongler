@@ -84,13 +84,52 @@ export function parseConfig(configPath: string): Config {
 }
 
 /**
- * Loads the wrangler config from the current directory
+ * Loads the wrangler config from the current directory, or from an explicit
+ * path (like Wrangler's --config) relative to that directory
  */
-export function loadConfig(projectRoot?: string): Config | null {
+export function loadConfig(projectRoot?: string, explicitPath?: string): Config | null {
+	if (explicitPath) {
+		const resolved = path.resolve(projectRoot || process.cwd(), explicitPath);
+		if (!existsSync(resolved)) {
+			return null;
+		}
+		return parseConfig(resolved);
+	}
+
 	const configPath = findConfigPath(projectRoot);
 	if (!configPath) {
 		return null;
 	}
 
 	return parseConfig(configPath);
+}
+
+/**
+ * Returns the config as Wrangler will see it for `--env <env>`.
+ *
+ * Only the handful of fields YOLO mode looks at itself are resolved (worker
+ * name, entry point, account and assets). Wrangler does the real work, since
+ * YOLO mode hands it --env as-is. With the default `legacy_env`, an
+ * environment's worker is called `<name>-<env>`.
+ */
+export function resolveEnvConfig(config: Config, env?: string): Config {
+	if (!env) {
+		return config;
+	}
+
+	const envs = (config.env ?? {}) as Record<string, Record<string, unknown> | undefined>;
+	const envConfig = envs[env] ?? {};
+	const legacyEnv = config.legacy_env !== false;
+	const name =
+		(envConfig.name as string | undefined) ??
+		(config.name && legacyEnv ? `${config.name}-${env}` : config.name);
+
+	return {
+		...config,
+		name,
+		main: (envConfig.main as string | undefined) ?? config.main,
+		account_id: (envConfig.account_id as string | undefined) ?? config.account_id,
+		assets: envConfig.assets ?? config.assets,
+		site: envConfig.site ?? config.site,
+	};
 }
